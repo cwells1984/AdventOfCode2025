@@ -1,14 +1,12 @@
-import math
 import re
-from turtledemo.penrose import start
 
 
 def get_input(path):
     list_a = []
     with open(path, 'r') as f:
         for line in f.readlines():
-            rotation_tuple = re.findall(r"([R,L])(\d+)", line.strip())
-            list_a.append(rotation_tuple[0])
+            t = re.findall(r"([R,L])(\d+)", line.strip())
+            list_a.append(t[0])
         return list_a
 
 class Dial:
@@ -19,45 +17,41 @@ class Dial:
         self.dial = list(range(self.lower, self.upper + 1))
         self.zero_count = 0
 
-    @staticmethod
-    def click():
-        pass
-
-    def click_part2(self):
-        if self.pointer == 0:
-            self.zero_count += 1
-
     def turn_left(self, rotations):
-        for i in range(0, rotations):
-            self.pointer -= 1
-            if self.pointer < self.lower:
-                self.pointer = self.upper
-            Dial.click()
+        self.pointer -= rotations % len(self.dial)
+        self.pointer = self.dial[self.pointer]
         if self.pointer == 0:
             self.zero_count += 1
 
     def turn_right(self, rotations):
-        for i in range(0, rotations):
-            self.pointer += 1
-            if self.pointer > self.upper:
-                self.pointer = self.lower
-            Dial.click()
+        self.pointer += rotations % len(self.dial)
+        self.pointer = self.pointer % len(self.dial)
         if self.pointer == 0:
             self.zero_count += 1
 
     def turn_left_part2(self, rotations):
-        for i in range(0, rotations):
-            self.pointer -= 1
-            if self.pointer < self.lower:
-                self.pointer = self.upper
-            self.click_part2()
+        complete_rotations = rotations // len(self.dial)
+        self.zero_count += complete_rotations
+        remaining_rotations = rotations % len(self.dial)
+
+        started_at_zero = self.pointer == 0
+        self.pointer -= remaining_rotations
+        if self.pointer <= 0:
+            self.pointer = self.dial[self.pointer]
+            if not started_at_zero:
+                self.zero_count += 1
 
     def turn_right_part2(self, rotations):
-        for i in range(0, rotations):
-            self.pointer += 1
-            if self.pointer > self.upper:
-                self.pointer = self.lower
-            self.click_part2()
+        complete_rotations = rotations // len(self.dial)
+        self.zero_count += complete_rotations
+        remaining_rotations = rotations % len(self.dial)
+
+        started_at_zero = self.pointer == 0
+        self.pointer += remaining_rotations
+        if self.pointer > self.upper:
+            self.pointer = self.pointer % len(self.dial)
+            if not started_at_zero:
+                self.zero_count += 1
 
     def __str__(self):
         s = f"Pointer is at {self.pointer}\n"
