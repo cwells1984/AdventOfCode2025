@@ -29,7 +29,6 @@ def is_repeated_sequence_part2(id):
 
     for i in range(1, (l//2)+1):
         search_for = s[0:i]
-        test = f"^{search_for}{{2,}}$"
         if re.search(f"^({search_for}){{2,}}$", s):
             return True
     return False
