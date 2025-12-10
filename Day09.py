@@ -49,7 +49,9 @@ def get_input(path):
 
 
 def calculate_area(a, b):
-    return abs(a[0] - b[0] + 1) * abs(a[1] - b[1] + 1)
+    test1 = abs(a[0] - b[0]) + 1
+    test2 = abs(a[1] - b[1]) + 1
+    return test1 * test2
 
 # a = upper-left, b = lower-right
 def calculate_area_part2(a, b):
@@ -128,43 +130,58 @@ class TileFloor:
             return True
 
         # Next, see if it is directly on a vertical  line:
-        for v_edge in self.map_vert_edges[coords[0]]:
-            if v_edge.y_min <= coords[1] <= v_edge.y_max:
-                return True
+        if coords[0] in self.map_vert_edges:
+            for v_edge in self.map_vert_edges[coords[0]]:
+                if v_edge.y_min <= coords[1] <= v_edge.y_max:
+                    return True
 
         # Next, see if it is directly on a horizontal line:
-        for h_edge in self.map_horiz_edges[coords[1]]:
-            if h_edge.x_min <= coords[0] <= h_edge.x_max:
-                return True
-
-        # Finally, count the vertical and horizontal edges crossed. If both are odd, we are within the polygon
-        vert_edges = 0
         if coords[1] in self.map_horiz_edges:
-            for horiz_edge in self.map_horiz_edges[coords[1]]:
-                if horiz_edge.x_max < coords[0]:
-                    vert_edges += 1
-                    break
-        for i in range(coords[0]+1):
-            if i in self.map_vert_edges:
-                for vert_edge in self.map_vert_edges[i]:
-                    if vert_edge.y_min < coords[1] < vert_edge.y_max:
-                        vert_edges += 1
-                        break
+            for h_edge in self.map_horiz_edges[coords[1]]:
+                if h_edge.x_min <= coords[0] <= h_edge.x_max:
+                    return True
 
-        horiz_edges = 0
-        if coords[0] in self.map_vert_edges:
-            for vert_edge in self.map_vert_edges[coords[0]]:
-                if vert_edge.y_max < coords[1]:
-                    horiz_edges += 1
-                    break
-        for i in range(coords[1]+1):
-            if i in self.map_horiz_edges:
-                for horiz_edge in self.map_horiz_edges[i]:
-                    if horiz_edge.x_min < coords[0] < horiz_edge.x_max:
-                        horiz_edges += 1
-                        break
+        # Finally, count the edges crossed via a diagonally-traced ray
+        edge_count = 0
+        x = coords[0] - 1
+        y = coords[1] - 1
+        while x >= 0 and y >= 0:
+            if x in self.map_vert_edges:
+                v_edges = self.map_vert_edges[x]
+                for v_edge in v_edges:
+                    if v_edge.y_min <= y <= v_edge.y_max:
+                        edge_count += 1
+            elif y in self.map_horiz_edges:
+                h_edges = self.map_horiz_edges[y]
+                for h_edge in h_edges:
+                    if h_edge.x_min <= x <= h_edge.x_max:
+                        edge_count += 1
+            x -= 1
+            y -= 1
 
-        return (vert_edges % 2 == 1) and (horiz_edges % 2 == 1)
+        return (edge_count % 2 == 1)
+
+    def is_polygon_valid(self, upper_left, upper_right, lower_left, lower_right, midpoint):
+        if self.is_within_polygon(upper_left):
+            if self.is_within_polygon(upper_right):
+                if self.is_within_polygon(lower_left):
+                    if self.is_within_polygon(lower_right):
+                        if self.is_within_polygon(midpoint):
+                            return True
+        return False
+        # for i in range(upper_left[0], upper_right[0] + 1):
+        #         if not self.is_within_polygon((i, upper_left[1])):
+        #             return False
+        # for i in range(lower_left[0], lower_right[0] + 1):
+        #         if not self.is_within_polygon((i, lower_left[1])):
+        #             return False
+        # for i in range(upper_left[1], lower_left[1] + 1):
+        #         if not self.is_within_polygon((upper_left[0], i)):
+        #             return False
+        # for i in range(upper_right[1], lower_right[1] + 1):
+        #         if not self.is_within_polygon((upper_right[0], i)):
+        #             return False
+        # return True
 
     def find_max_rectangle_part2(self):
         max_area = -1
@@ -174,7 +191,7 @@ class TileFloor:
         for i in range(len(self.red_tiles)):
             for j in range(i+1, len(self.red_tiles)):
 
-                if (self.red_tiles[i] == (7,1)) and (self.red_tiles[j] == (11,7)):
+                if (self.red_tiles[i] == (9,5)) and (self.red_tiles[j] == (2,3)):
                     pass
 
                 upper_left = None
@@ -208,20 +225,11 @@ class TileFloor:
                 if lower_right is None:
                     lower_right = tuple([upper_right[0], lower_left[1]])
 
-                # Now check the validity
-                lower_left_valid = False
-                upper_right_valid = False
-                lower_right_valid = False
-                upper_left_valid = self.is_within_polygon(upper_left)
-                if upper_left_valid:
-                    lower_left_valid = self.is_within_polygon(lower_left)
-                    if lower_left_valid:
-                        upper_right_valid = self.is_within_polygon(upper_right)
-                        if upper_right_valid:
-                            lower_right_valid = self.is_within_polygon(lower_right)
+                midpoint = ((upper_left[0] + upper_right[0])//2, (upper_left[1] + lower_left[1])//2)
 
-                if upper_left_valid and lower_left_valid and upper_right_valid and lower_right_valid:
-                    area = calculate_area_part2(upper_left, lower_right)
+                # Now check the validity of each point in the perimeter
+                if self.is_polygon_valid(upper_left, upper_right, lower_left, lower_right, midpoint):
+                    area = calculate_area(upper_left, lower_right)
                     if area > max_area:
                         max_area = area
                         max_r1 = self.red_tiles[i]
