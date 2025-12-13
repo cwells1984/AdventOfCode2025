@@ -1,5 +1,5 @@
-import math
-import numpy as np
+from copy import copy
+from shapely import Polygon
 
 def get_input(path):
 
@@ -45,13 +45,16 @@ def get_input(path):
             else:
                 map_h_l[h_l.y] = [h_l]
 
-    return r_t, map_h_l, map_v_l, h, w
+    return r_t, h, w, map_v_l, map_h_l
 
 
 def calculate_area(a, b):
     test1 = abs(a[0] - b[0]) + 1
     test2 = abs(a[1] - b[1]) + 1
     return test1 * test2
+
+def calculate_area_of_entry(e):
+    return calculate_area(e[0], e[1])
 
 # a = upper-left, b = lower-right
 def calculate_area_part2(a, b):
@@ -70,10 +73,8 @@ class HorizontalLine:
         self.x_max = x_max
 
 class TileFloor:
-    def __init__(self, red_tiles, map_horiz_edges, map_vert_edges, height, width):
+    def __init__(self, red_tiles, height, width):
         self.red_tiles = red_tiles
-        self.map_horiz_edges = map_horiz_edges
-        self.map_vert_edges = map_vert_edges
         self.height = height
         self.width = width
 
@@ -92,151 +93,18 @@ class TileFloor:
 
         return max_area, max_r1, max_r2
 
-    def is_edge_above(self, coords):
-        for i in range(coords[1], -1, -1):
-            if i in self.map_horiz_edges:
-                for horiz_edge in self.map_horiz_edges[i]:
-                    if horiz_edge.x_min <= coords[0] <= horiz_edge.x_max:
-                        return True
-        return False
-
-    def is_edge_below(self, coords):
-        for i in range(coords[1], self.height):
-            if i in self.map_horiz_edges:
-                for horiz_edge in self.map_horiz_edges[i]:
-                    if horiz_edge.x_min <= coords[0] <= horiz_edge.x_max:
-                        return True
-        return False
-
-    def is_edge_left(self, coords):
-        for i in range(coords[0], -1, -1):
-            if i in self.map_vert_edges:
-                for vert_edge in self.map_vert_edges[i]:
-                    if vert_edge.y_min <= coords[1] <= vert_edge.y_max:
-                        return True
-        return False
-
-    def is_edge_right(self, coords):
-        for i in range(coords[0], self.width):
-            if i in self.map_vert_edges:
-                for vert_edge in self.map_vert_edges[i]:
-                    if vert_edge.y_min <= coords[1] <= vert_edge.y_max:
-                        return True
-        return False
-
-    def is_within_polygon(self, coords):
-        # First, is the coord a red tile?
-        if coords in self.red_tiles:
-            return True
-
-        # Next, see if it is directly on a vertical  line:
-        if coords[0] in self.map_vert_edges:
-            for v_edge in self.map_vert_edges[coords[0]]:
-                if v_edge.y_min <= coords[1] <= v_edge.y_max:
-                    return True
-
-        # Next, see if it is directly on a horizontal line:
-        if coords[1] in self.map_horiz_edges:
-            for h_edge in self.map_horiz_edges[coords[1]]:
-                if h_edge.x_min <= coords[0] <= h_edge.x_max:
-                    return True
-
-        # Finally, count the edges crossed via a diagonally-traced ray
-        edge_count = 0
-        x = coords[0] - 1
-        y = coords[1] - 1
-        while x >= 0 and y >= 0:
-            if x in self.map_vert_edges:
-                v_edges = self.map_vert_edges[x]
-                for v_edge in v_edges:
-                    if v_edge.y_min <= y <= v_edge.y_max:
-                        edge_count += 1
-            elif y in self.map_horiz_edges:
-                h_edges = self.map_horiz_edges[y]
-                for h_edge in h_edges:
-                    if h_edge.x_min <= x <= h_edge.x_max:
-                        edge_count += 1
-            x -= 1
-            y -= 1
-
-        return (edge_count % 2 == 1)
-
-    def is_polygon_valid(self, upper_left, upper_right, lower_left, lower_right, midpoint):
-        if self.is_within_polygon(upper_left):
-            if self.is_within_polygon(upper_right):
-                if self.is_within_polygon(lower_left):
-                    if self.is_within_polygon(lower_right):
-                        if self.is_within_polygon(midpoint):
-                            return True
-        return False
-        # for i in range(upper_left[0], upper_right[0] + 1):
-        #         if not self.is_within_polygon((i, upper_left[1])):
-        #             return False
-        # for i in range(lower_left[0], lower_right[0] + 1):
-        #         if not self.is_within_polygon((i, lower_left[1])):
-        #             return False
-        # for i in range(upper_left[1], lower_left[1] + 1):
-        #         if not self.is_within_polygon((upper_left[0], i)):
-        #             return False
-        # for i in range(upper_right[1], lower_right[1] + 1):
-        #         if not self.is_within_polygon((upper_right[0], i)):
-        #             return False
-        # return True
-
-    def find_max_rectangle_part2(self):
-        max_area = -1
-        max_r1 = (-1, -1)
-        max_r2 = (-1, -1)
+    def find_all_rectangles(self):
+        l = []
 
         for i in range(len(self.red_tiles)):
             for j in range(i+1, len(self.red_tiles)):
+                tile1 = self.red_tiles[i]
+                tile2 = self.red_tiles[j]
+                l.append([tile1, tile2])
 
-                if (self.red_tiles[i] == (9,5)) and (self.red_tiles[j] == (2,3)):
-                    pass
 
-                upper_left = None
-                lower_left = None
-                upper_right = None
-                lower_right = None
-
-                # Plot two of the corners
-                if self.red_tiles[i][0] < self.red_tiles[j][0]:
-                    if self.red_tiles[i][1] < self.red_tiles[j][1]:
-                        upper_left = self.red_tiles[i]
-                        lower_right = self.red_tiles[j]
-                    else:
-                        lower_left = self.red_tiles[i]
-                        upper_right = self.red_tiles[j]
-                else:
-                    if self.red_tiles[i][1] < self.red_tiles[j][1]:
-                        upper_right = self.red_tiles[i]
-                        lower_left = self.red_tiles[j]
-                    else:
-                        lower_right = self.red_tiles[i]
-                        upper_left = self.red_tiles[j]
-
-                # Now plot the remaining corners
-                if upper_left is None:
-                    upper_left = tuple([lower_left[0], upper_right[1]])
-                if lower_left is None:
-                    lower_left = tuple([upper_left[0], lower_right[1]])
-                if upper_right is None:
-                    upper_right = tuple([lower_right[0], upper_left[1]])
-                if lower_right is None:
-                    lower_right = tuple([upper_right[0], lower_left[1]])
-
-                midpoint = ((upper_left[0] + upper_right[0])//2, (upper_left[1] + lower_left[1])//2)
-
-                # Now check the validity of each point in the perimeter
-                if self.is_polygon_valid(upper_left, upper_right, lower_left, lower_right, midpoint):
-                    area = calculate_area(upper_left, lower_right)
-                    if area > max_area:
-                        max_area = area
-                        max_r1 = self.red_tiles[i]
-                        max_r2 = self.red_tiles[j]
-                        print(max_area)
-
-        return max_area, max_r1, max_r2
+        l.sort(key=calculate_area_of_entry, reverse=True)
+        return l
 
     def __str__(self):
         s = ""
@@ -244,26 +112,45 @@ class TileFloor:
             for j in range(self.width):
                 if (j, i) in self.red_tiles:
                     s += "#"
-                elif (j, i) in self.green_tiles:
-                    s += "X"
                 else:
                     s += "."
             s += "\n"
         return s
 
 
+def polygon_from_red_squares(red_squares):
+    polygon_coords = copy(red_squares)
+    polygon_coords.append(polygon_coords[0])
+    return Polygon(polygon_coords)
+
+
+def is_rectangle_in_polygon(p, r):
+    low_x = min([r[0][0], r[1][0]])
+    high_x = max([r[0][0], r[1][0]])
+    low_y = min([r[0][1], r[1][1]])
+    high_y = max([r[0][1], r[1][1]])
+    rect_polygon = Polygon([[low_x, low_y], [high_x, low_y], [high_x, high_y], [low_x, high_y]])
+    if rect_polygon.within(p):
+        return True
+    else:
+        return False
+
 if __name__ == "__main__":
 
     # PART 1
-    # red_squares, green_squares, h, w = get_input("Day09_InputTest.txt")
-    # tile_floor = TileFloor(red_squares, green_squares, h, w)
-    # area, r1, r2 = tile_floor.find_max_rectangle()
-    # print(f"Max Area: {area}")
-    # print(f"{r1}x{r2}")
-
-    # PART 2
-    red_squares, map_horiz_edges, map_vert_edges, h, w = get_input("Day09_Input.txt")
-    tile_floor = TileFloor(red_squares, map_horiz_edges, map_vert_edges, h, w)
-    area, r1, r2 = tile_floor.find_max_rectangle_part2()
+    red_squares, h, w, map_v_l, map_h_l = get_input("Day09_Input.txt")
+    tile_floor = TileFloor(red_squares, h, w)
+    area, r1, r2 = tile_floor.find_max_rectangle()
     print(f"Max Area: {area}")
     print(f"{r1}x{r2}")
+
+    # PART 2
+    polygon = polygon_from_red_squares(red_squares)
+    all_rectangles = tile_floor.find_all_rectangles()
+    max_rectangle = None
+    for rectangle in all_rectangles:
+        if is_rectangle_in_polygon(polygon, rectangle):
+            max_rectangle = rectangle
+            break
+    print(f"Max Rectangle within Polygon: {max_rectangle}")
+    print(f"Max Area: {calculate_area_of_entry(max_rectangle)}")
